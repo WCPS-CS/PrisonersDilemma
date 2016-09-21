@@ -1,735 +1,382 @@
 from __future__ import print_function
 
-''' 
-HELLO PrisonerDilemma.py allows hard-coding different strategies
-for the Iterative Prisoners Dilemma, the canonical game of game-theory.
-Each strategy plays 100 to 200 rounds against each other strategy.
-The results of all previous rounds within a 100-200 round stretch are known
-to both players. 
-
-play_tournament() executes the tournament and stores output in tournament.txt
-
-Players should each code their strategies in their assigned section of code.
-
-Aggregated results are stored in tournament.txt
-
-Unpublished work (c)2013 Project Lead The Way
-CSE Project 1.3.5 Collaborating on a Project
-Draft, Do Not Distribute
-Version 8/23/2013 
-'''
-
+##### 
+# Computer Science and Software Engineering
+# PLTW AP CS Principles
+# (c)2014 Project Lead The Way, Inc.
+#
+# Activity 1.3.9 Tools for Collaboration
+# Project 1.3.10 Collaborating on a Project
+# 
+# To run a tournament, execute this file. 
+# Place each team's strategy in a file in the same directory as this file.
+# Tournament results saved to tournament.txt in this directory.
+#
+# prisoners_dilemma.py automates competition among different strategies
+# for the Iterative Prisoners Dilemma, the canonical game of game-theory.
+# Each strategy is pitted against each other strategy for 100 to 200 rounds.
+# The results of all previous rounds within a 100-200 round stretch are known
+# to both players. 
+#
+# play_tournament([team0, team1, team2]) executes a tournament and writes to tournament.txt
+#
+# Each team's strategy should be coded in their assigned Python file, called a module.
+# Each player should have their own .py file containing 
+# three strings team_name, strategy_name, and strategy_description
+# and a function move(my_history, their_history, my_score, their_score)
+# 
+# By default, when executing this file, [example0, example1, example2, example3] 
+# play a tournament. To run the tournament of [team, team1, team1, example1]:
+# scores, moves, reports = main_play([team1]*3+[example1])
+# section0, section1, section2, section3 = reports
+#######
 import random
-def play_round(player1, player2, history1, history2, score1, score2):
-    '''
-    Calls the get_action() function which will get the characters
-    'c' or 'b' for collude or betray for each player.
-    The history is provided in a string, e.g. 'ccb' indicates the player
-    colluded in the first two rounds and betrayed in the most recent round.
-    Returns a 4-tuple with updated histories and scores
-    (history1, history2, score1, score2)
-    '''
+import os.path              
     
-    RELEASE = 0 # (R) when both players collude
-    TREAT = 100 # (T) when you betray your partner
-    SEVERE_PUNISHMENT = -500 # (S) when your partner betrays you
-    PUNISHMENT = -250 # (P) when both players betray each other
-    # Keep T > R > P > S to be a Prisoner's Dilemma
-    # Keep 2R > T + S to be an Iterative Prisoner's Dilemma
+import example0, example1, example2, example3
+import example4, example5, example6, example7
+import team0, team1, team2, team3, team4
+import team5, team6, team7, team8, team9
+import team10, team11, team12, team13, team14
+betray = example1
+collude = example0
+
+modules = [example0, example1, example2, example3, example4, example5, example6, example7,
+team0, team1, team2, team3, team4, team5, team6, team7, team8, team9, team10, 
+team11, team12, team13, team14]
+for module in modules:
+    reload(module)
+    print ('reloaded',module)
+    for required_variable in ['team_name', 'strategy_name', 'strategy_description']:
+        if not hasattr(module, required_variable):
+            setattr(module, required_variable, 'missing assignment')
+
+def main_play(modules):
+    '''main_play plays a tournament and outputs results to screen and file.
+    This function is called once when this file is executed.
+    modules: a list of modules such as [team1, team2]    
     
-    #Get the two players' actions and remember them.
-    action1 = get_action(player1, history1, history2, score1, score2)
-    action2 = get_action(player2, history2, history1, score2, score1)
-    if type(action1) != str:
-        action1=' '
-    if type(action2) != str:
-        action2=' '
-    #Append the actions to the previous histories, to return
-    new_history1 = history1 + action1
-    new_history2 = history2 + action2
-    
-    #Change scores based upon player actions
-    if action1 not in ('c','b') or action2 not in ('c','b'):
-    # Do nothing if someone's code returns an improper action
-        new_score1 = score1
-        new_score2 = score2
+    Returns:
+        scores:
+        moves:
+        sections: a list of [str, str, str, list of str]    
+            '''
+    scores, moves = play_tournament(modules)
+    section0, section1, section2, section3 = make_reports(modules, scores, moves)
+    code = make_code_string(modules)
+    # On screen, include the first three out of four sections of the report.
+    print(section0+section1+section2)
+    # To file output, store all teams' code and all teams' section 3 reports.
+    post_to_file(section0+section1+section2 + code + ''.join(section3))
+    return scores, moves, [section0, section1, section2, section3]
         
-    else: 
-    #Both players' code provided proper actions
-        if action1 == 'c':
-            if action2 == 'c':
-                # both players collude; get reward
-                new_score1 = score1 + RELEASE
-                new_score2 = score2 + RELEASE
-            else:
-                # players 1,2 collude, betray; get sucker, tempation
-                new_score1 = score1 + SEVERE_PUNISHMENT
-                new_score2 = score2 + TREAT
-        else:
-            if action2 == 'c':
-                # players 1,2 betray, collude; get tempation, sucker
-                new_score1 = score1 + TREAT
-                new_score2 = score2 + SEVERE_PUNISHMENT                       
-            else:
-                # both players betray; get punishment   
-                new_score1 = score1 + PUNISHMENT
-                new_score2 = score2 + PUNISHMENT
-                    
-    #send back the updated histories and scores
-    return (new_history1, new_history2, new_score1, new_score2)
-   
+def play_tournament(modules):
+    '''Each argument is a module name
+    Each module must contain 
+        team_name: a string
+        strategy_name: a string
+        strategy_description: a string
+        move: A function that returns 'c' or 'b'
+    '''
+    zeros_list = [0]*len(modules) # to initialize each player's head-to-head scores
+    scores = [zeros_list[:] for module in modules] # Copy it or it's only 1 list
+    moves = [zeros_list[:] for module in modules] # Copy it or it's only 1 list
+    for first_team_index in range(len(modules)):
+        for second_team_index in range(first_team_index):
+            player1 = modules[first_team_index]
+            player2 = modules[second_team_index]
+            score1, score2, moves1, moves2 = play_iterative_rounds(player1, player2)
+            capitalize(moves1, moves2)
+            scores[first_team_index][second_team_index] = score1/len(moves1) # int division not an issue
+            moves[first_team_index][second_team_index] = moves1
+            # Redundant, but record this for the other player, from their perspective
+            scores[second_team_index][first_team_index] = score2/len(moves2) 
+            moves[second_team_index][first_team_index] = moves2
+        # Playing yourself doesn't do anything
+        scores[first_team_index][first_team_index] = 0
+        moves[first_team_index][first_team_index] = ''
+    return scores, moves
+
+
 def play_iterative_rounds(player1, player2):
     '''
     Plays a random number of rounds (between 100 and 200 rounds) 
     of the iterative prisoners' dilemma between two strategies.
-    identified in the parameters as integers.
+    player1 and player2 are modules.
     Returns 4-tuple, for example ('cc', 'bb', -200, 600) 
     but with much longer strings 
     '''
-    number_of_rounds = random.randint(100,200)
+    number_of_rounds = random.randint(100, 200)
     moves1 = ''
     moves2 = ''
     score1 = 0
     score2 = 0
     for round in range(number_of_rounds):
-        moves1, moves2, score1, score2 = \
-            play_round(player1, player2, moves1, moves2, score1, score2)
-    return (moves1, moves2, score1, score2)
-
-def get_action(player, history, opponent_history, score, opponent_score, getting_team_name=False):
-    '''Gets the strategy for the player, given their own history and that of
-    their opponent, as well as the current scores within this pairing.
-    The parameters history and opponenet history are strings with one letter
-    per round that has been played so far: either an 'c' for collude or a 'b' for 
-    betray. The function should return one character, 'c' or 'b'. 
-    The history strings have the first round between these two players 
-    as the first character and the most recent round as the last character.'''
-      
-    ######
-    ######
-    #
-    # This example player always colludes
-    if player == 0:
-        if getting_team_name:
-            return 'loyal'
-        else:
-            return 'c'
-
+        score1, score2, moves1, moves2 = play_round(player1, player2, score1, score2, moves1, moves2)
+    return (score1, score2, moves1, moves2)
     
-        
-            
-                
+def play_round(player1, player2, score1, score2, moves1, moves2):
+    '''
+    Calls the move() function from each module which return
+    'c' or 'b' for collude or betray for each player.
+    The history is provided in a string, e.g. 'ccb' indicates the player
+    colluded in the first two rounds and betrayed in the most recent round.
+    Returns a 2-tuple with score1 and score2 incremented by this round
+    '''
+    
+    RELEASE = 0 # (R, "reward" in literature) when both players collude
+    TREAT = 100 # (T, "temptation" in literature) when you betray your partner
+    SEVERE_PUNISHMENT = -500 # (S, "sucker" in literature) when your partner betrays you
+    PUNISHMENT = -250 # (P) when both players betray each other
+    
+    # Keep T > R > P > S to be a Prisoner's Dilemma
+    # Keep 2R > T + S to be an Iterative Prisoner's Dilemma
+    
+    ERROR = -250
+    
+    # Get the two players' actions and remember them.
+    action1 = player1.move(moves1, moves2, score1, score2)
+    action2 = player2.move(moves2, moves1, score2, score1)
+    if (type(action1) != str) or (len(action1) != 1):
+        action1=' '
+    if (type(action2) != str) or (len(action2) != 1):
+        action2=' '
+    
+    # Change scores based upon player actions.
+    actions = action1 + action2
+    if actions == 'cc':
+        # Both players collude; get reward.
+        score1 += RELEASE
+        score2 += RELEASE
+    elif actions == 'cb':
+        # Player 1 colludes, player 2 betrays; get severe, treat.
+        score1 += SEVERE_PUNISHMENT
+        score2 += TREAT
+    elif actions == 'bc':
+        # Player 1 betrays, player 2 colludes; get treat, severe.
+        score1 += TREAT
+        score2 += SEVERE_PUNISHMENT 
+    elif actions == 'bb':
+        # Both players betray; get punishment.   
+        score1 += PUNISHMENT
+        score2 += PUNISHMENT     
+    else:
+        # Both players get the "error score" if someone's code returns an improper action.
+        score1 += ERROR
+        score2 += ERROR
+    
+    # Append the actions to the previous histories.
+    if action1 in 'bc':
+        moves1 += action1
+    else:
+        moves1 += ' '
+    if action2 in 'bc':
+        moves2 += action2
+    else:
+        moves2 += ' '
                     
-                            
-    ######
-    ######
-    #
-    #This example player always betrays.      
-    elif player == 1:
-        if getting_team_name:
-            return 'backstabber'
-        else:
-            return 'b'
-
-
-
-
-
-
-
-
-    ######
-    ######
-    #   
-    #This example player is silent at first and then 
-    #only betrays if they were a sucker last round.
-    elif player == 2:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray if they were severely punished last time
-            else:
-                return 'c' #otherwise collude
-
-
-    
-    
-    
-    
-    # EACH STUDENT TEAM CAN CHANGE ONE OF THESE elif SEGMENTS OF CODE.
-
-
-
-
-
-
-
-
-
-
-    ######
-    ######
-    #
-    elif player == 3:
-        if getting_team_name:
-            return 'running score'
-        else:
-            # use history, opponent_history, score, opponent_score
-            # to compute your strategy
-            runScore = 100  # Variable to keep track of opponent's history
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='c':
-                runScore += -200   # Reward collusion
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                runScore += -400  # Penalize highly for screwing us
-            elif history[-1]=='b' and opponent_history[-1]=='c':
-                runScore += 100   # Give them a chance if they collude
-            elif history[-1]=='b' and opponent_history[-1]=='b':
-                runScore += -250  # We'll keep betraying
-            if runScore < 0:
-                return 'b' # betray if score is too bad
-            else:
-                return 'c' #otherwise collude
-
-
-
-
-
-
-
-
-
-
-    ######
-    ######
-    #
-    elif player == 4:
-        if getting_team_name:
-            return 'Random House'
-        else:
-            # use history, opponent_history, score, opponent_score
-            # to compute your strategy
-            size = len(history)
-            if(size%5==0): #the number of rounds played is a multiple of 3
-                return 'c'
-            else:
-                return 'b' 
-            '''return random.choice('c''b''b''b''b''b''b''b''b''b''b')'''
-    
-    
-
-
-
-
-
-
-
-
-    ######
-    ######        
-    #
-    elif player == 5:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            # use history, opponent_history, score, opponent_score
-            # to compute your strategy
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were severely punished last time
-            else:
-                return 'c' #otherwise collude
-    
-    
-    
-    
-
-
-
-
-
-    ######
-    ######        
-    #
-    elif player == 6:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            # use history, opponent_history, score, opponent_score
-            # to compute your strategy
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were severely punished last time
-            else:
-                return 'c' #otherwise collude
-    
-
-
-
-
-
-
-
-
-
-
-    ######
-    ######       
-    #
-    elif player == 7:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            # use history, opponent_history, score, opponent_score
-            # to compute your strategy
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were sucker last time
-            else:
-                return 'c' #otherwise collude
-
-
-
-
-
-
-
-
-
-
-
-    ######
-    ######        
-    #
-    elif player == 8:
-        if getting_team_name:
-            #if there was a previous round just like 
-            return 'loyal vengeful with permanent second impression'
-        else:
-            # use history, opponent_history, score, opponent_score
-            # to compute your strategy      
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            else:
-                # if there was a previous round just like the last one,
-                # do whatever they did in the round that followed it
-                recent_round_opponent = opponent_history[-1]
-                recent_round_me = history[-1]
-                            
-                #go through rounds before that one
-                for round in range(len(history)-1):
-                    prior_round_opponent = opponent_history[round]
-                    prior_round_me = history[round]
-                    #if one matches
-                    if (prior_round_me == recent_round_me) and \
-                            (prior_round_opponent == recent_round_opponent):
-                        return opponent_history[round]
-                # no match found
-                if history[-1]=='c' and opponent_history[-1]=='b':
-                    return 'b' # betray is they were severely punished last time
-                else:
-                    return 'c' #otherwise collude
-
-
-
-
-
-
-
-
-
-
-
-
-    ######
-    ######
-    #
-    elif player == 9:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            # use history, opponent_history, score, opponent_score
-            # to compute your strategy
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were severely punished last time
-            else:
-                return 'c' #otherwise collude
-
-
-
-
-
-
-
-
-
-
-    ######
-    ######
-    #
-    elif player == 10:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            # use history, opponent_history, score, opponent_score
-            # to compute your strategy
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were severely punished last time
-            else:
-                return 'c' #otherwise collude
-
-
-
-
-
-
-
-
-
-    ######
-    ######
-    #
-    elif player == 11:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            # use history, opponent_history, score, opponent_score
-            # to compute your strategy
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were severely punished last time
-            else:
-                return 'c' #otherwise collude
-
-
-
-
-
-
-
-
-
-
-    ######
-    ######
-    #
-    elif player == 12:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            # use history, opponent_history, score, opponent_score
-            # to compute your strategy
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were severely punished last time
-            else:
-                return 'c' #otherwise collude
-    
-    
-
-
-    ######
-    ######
-    #
-    elif player == 13:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were severely punished last time
-            else:
-                return 'c' #otherwise collude
-    
-    
-
-
-
-
-
-
-
-    ######
-    ######
-    #
-    elif player == 14:
-        if getting_team_name:
-            return 'loyal vengeful occasionally greedy'
-        else:
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were severely punished last time
-            else:
-                if random.random()<0.1: #10% of the other rounds
-                    return 'b'         #betray
-                else:
-                    return 'c'         #otherwise collude
-    
-    
-    
-    
-
-
-
-    ######
-    ######
-    #
-    elif player == 15:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were severely punished last time
-            else:
-                return 'c' #otherwise collude
-    
-    
-
-
-
-
-
-
-
-    ######
-    ######
-    #
-    elif player == 16:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were severely punished last time
-            else:
-                return 'c' #otherwise collude
-    
-    
-
-
-
-
-
-
-
-    ######
-    ######
-    #
-    elif player == 17:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were severely punished last time
-            else:
-                return 'c' #otherwise collude
-    
-    
-
-
-
-
-
-
-
-    ######
-    ######
-    #
-    elif player == 18:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were severely punished last time
-            else:
-                return 'c' #otherwise collude
-    
-    
-
-
-
-
-
-
-
-    ######
-    ######
-    #
-    elif player == 19:
-        if getting_team_name:
-            return 'loyal vengeful'
-        else:
-            if len(opponent_history)==0: #It's the first round: collude
-                return 'c'
-            elif history[-1]=='c' and opponent_history[-1]=='b':
-                return 'b' # betray is they were severely punished last time
-            else:
-                return 'c' #otherwise collude
-    
-    
-
-
-
-
-
-
-
-def play_tournament(num_players):
-    #create a list of zeros, one per player
-    scores = []
-    for i in range(num_players):
-        scores += [0]
-    
-    
-    ''' Get the team name from each team algorithm'''
-    #create a list of the right length
-    team_names = range(num_players)
-    for player in range(num_players):
-        team_names[player] = get_action(player,'','',0,0,getting_team_name=True)
-             
-    # each element will become a column for each player
-    # range is just to get list of correct size
-    result_table=range(num_players)     
-    moves_table=range(num_players) 
-    
-    
-    for player1 in range(num_players):  
-        # create the column for each player
-        # range just to get list of correct size
-        result_table[player1]=range(num_players) 
-        result_table[player1][player1]=0 # initialize unused diagonal to 0
-        moves_table[player1]=range(num_players)
-        # play a game between with every other player of lower number
-        for player2 in range(player1):
-            moves1, moves2, score1, score2 = \
-                play_iterative_rounds(player1, player2)
+    # Return scores incremented by this round's results.
+    return (score1, score2, moves1, moves2)  
             
-            rounds = len(moves1)
-            score1_per_round = score1/rounds 
-            score2_per_round = score2/rounds
-            
-            result_table[player1][player2]=score1_per_round
-            result_table[player2][player1]=score2_per_round
-            
-            moves_table[player1][player2] = moves1
-            moves_table[player2][player1] = moves2
-            
-            #accumulate the results for the two players
-            scores[player1] += score1*1.0/len(moves1)#ends up same as column sum
-            scores[player2] += score2*1.0/len(moves2)#ends up same as column sum
-     
-    '''report round-level results in a data file'''
-    use_datafile=True
-    if use_datafile:
-        # use the same directory as the python script
-        import os.path              
+def make_reports(modules, scores, moves):
+    section0 = make_section0(modules, scores)
+    section1 = make_section1(modules, scores)
+    section2 = make_section2(modules, scores)
+    
+    section3 = []
+    for index in range(len(modules)):
+        section3.append(make_section3(modules, moves, scores, index))
+    return section0, section1, section2, section3
+        
+def make_section0(modules, scores):
+    '''
+    Produce the following string:
+    ----------------------------------------------------------------------------
+    Section 0 - Line up
+    ----------------------------------------------------------------------------
+    Player 0 (P0): Team name 0, Strategy name 0,
+         Strategy 0 description
+    Player 1 (P1): Team name 1, Strategy name 1, 
+         Strategy 1 description
+    ''' 
+    section0 = '-'*80+'\n'
+    section0 += 'Section 0 - Line up\n'
+    section0 += '-'*80+'\n'
+    for index in range(len(modules)):
+        section0 += 'Player ' + str(index) + ' (P' + str(index) + '): '
+        section0 += str(modules[index].team_name) + ', ' + str(modules[index].strategy_name) + '\n'
+        strategy_description = str(modules[index].strategy_description)
+        # Format with 8 space indent 80 char wide
+        while len(strategy_description) > 1:
+            newline = strategy_description[:72].find('\n')
+            if newline> -1:
+                section0 += ' '*8 + strategy_description[:newline+1]
+                strategy_description = strategy_description[newline+1:]
+            else:
+                section0 += ' '*8 + strategy_description[:72] + '\n'
+                strategy_description = strategy_description[72:]
+    return section0
+    
+def make_section1(modules, scores):
+    '''
+    ----------------------------------------------------------------------------
+    Section 1 - Player vs. Player
+    ----------------------------------------------------------------------------
+    A column shows pts/round earned against each other player:      
+                P0    P1         
+    vs. P0 :     0   100          
+    vs. P1 :  -500     0             
+    TOTAL  :  -500   100
+    '''
+    # First line
+    section1 = '-'*80+'\nSection 1 - Player vs. Player\n'+'-'*80+'\n'
+    section1 += 'Each column shows pts/round earned against each other player:\n'
+    # Second line
+    section1 += '        '
+    for i in range(len(modules)):
+          section1 += '{:>7}'.format('P'+str(i))
+    section1 += '\n'
+    # Add one line per team
+    for index in range(len(modules)):
+        section1 += 'vs. P' + str(index) + ' :'
+        for i in range(len(modules)):
+            section1 += '{:>7}'.format(scores[i][index])
+        section1 += '\n'
+
+    # Last line
+    section1 += 'TOTAL  :'
+    for index in range(len(modules)):
+        section1 += '{:>7}'.format(sum(scores[index]))     
+    return section1+'\n'
+    
+def make_section2(modules, scores):
+    '''
+    ----------------------------------------------------------------------------
+    Section 2 - Leaderboard
+    ----------------------------------------------------------------------------
+    Average points per round:
+    Team name (P#):  Score       with strategy name
+    Champ10nz (P0):   100 points with Loyal
+    Rockettes (P1):  -500 points with Backstabber
+    ''' 
+    section2 = '-'*80+'\nSection 2 - Leaderboard\n'+'-'*80+'\n'
+    section2 += 'Average points per round:\n'
+    section2 += 'Team name (P#):  Score      with strategy name\n'
+    
+    # Make a list of teams' 4-tuples
+    section2_list = []
+    for index in range(len(modules)):
+        section2_list.append((modules[index].team_name,
+                              'P'+str(index),
+                              str(sum(scores[index])/len(modules)),
+                              str(modules[index].strategy_name)))
+    section2_list.sort(key=lambda x: int(x[2]), reverse=True)
+    
+    # Generate one string per team
+    # Rockettes (P1):  -500 points with Backstabber
+    for team in section2_list:
+        team_name, Pn, n_points, strategy_name = team
+        section2 += '{:<10}({}): {:>10} points with {:<40}\n'.format(team_name[:10], Pn, n_points, strategy_name[:40])                       
+    return section2 
+    
+def make_section3(modules, moves, scores, index):
+    '''Return a string with information for the player at index, like:
+    ----------------------------------------------------------------------------
+    Section 3 - Game Data for Team Colloid c=-500 b=-250 C=0 B=+100
+    ----------------------------------------------------------------------------
+    -133 pt/round: Colloid (P6) "Collude every 3rd round"
+    -233 pt/round: 2PwnU (P8) "Betray, then alternate"
+    bBcBbCbBcBbCbBcBbCbBcBbCbBcBbCbBcBbCbBcBbCbBcBbCbBcBbCbBcBbCbBcBbCbBcBbCbBcB
+    bcBcbCbcbcbCBcbcbCBcbcbCBcbcbCBcbcbCBcbcbCBcbcbCBcbcbCBcbcbCBcbcbCBcbcbCBcbc
+    '''
+    section3 = '-'*80+'\nSection 3 - Game Data for Team '
+    section3 += modules[index].team_name + '\n'
+    section3 += '-'*80+'\n'
+    # Make 4 lines per opponent
+    for opponent_index in range(len(modules)):
+        if opponent_index != index:
+            # Line 1
+            section3 += str(scores[index][opponent_index])
+            section3 += ' pt/round: ' + modules[index].team_name +'(P'
+            section3 += str(index)+') "'+modules[index].strategy_name + '"\n'
+            # Line 2
+            section3 += str(scores[opponent_index][index])
+            section3 += ' pt/round: ' + modules[opponent_index].team_name +'(P'
+            section3 += str(opponent_index)+') "'+modules[opponent_index].strategy_name + '"\n'
+            # Lines 3-4
+            hist1, hist2 =  capitalize(moves[index][opponent_index], moves[opponent_index][index])
+            while len(hist1) > 1:
+                section3 += hist1[:80] + '\n'
+                section3 += hist2[:80] + '\n\n'
+                hist1 = hist1[80:]
+                hist2 = hist2[80:]
+            section3 += '-'*80 + '\n'
+    return section3
+                                                    
+def capitalize(history1, history2):
+    '''Accept two strings of equal length.
+    Return the same two strings but capitalizing the opponent of 'c' each round.
+    '''
+    caphistory1, caphistory2 = '', ''
+    for i in range(len(history1)):
+        p1 = history1[i]
+        p2 = history2[i]
+        if p1 == 'c':
+            p2 = p2.upper()
+        if p2 in 'cC':
+            p1 = p1.upper()
+        caphistory1 += p1    
+        caphistory2 += p2  
+    return caphistory1, caphistory2
+    
+def make_code_string(modules):
+    '''Returns a string of the code from each file.
+    '''
+    code = '-'*80 + '\n'
+    code += 'Code of each player\'s algorithm\n'
+    code = '-'*80 + '\n'
+    for index in range(len(modules)):
+        players_code_filename = str(modules[index]).split(' ')[1].replace('\'','')
         directory = os.path.dirname(os.path.abspath(__file__))  
-        
-        #name the file tournament.txt
-        filename = os.path.join(directory, 'tournament.txt')
-        #create the file for the round-by-round results
-        results = open(filename,'w')
-        for player1 in range(num_players):
-            for player2 in range(player1):
-                # store the results in the file
-                #title by team numbers
-                results.write('team ' + str(player1) + 
-                              ' vs. ' + 'team ' + str(player2) +'\n')
-                #title by player-on-player average score
-                results.write(str(result_table[player1][player2]) + 
-                              ' vs. ' + str(result_table[player2][player1])+'\n')
-                #title by team names
-                results.write(team_names[player1] + 
-                             ' vs. ' + team_names[player2] + '\n')
-                #show the moves, aligned vertically
-                results.write(moves_table[player1][player2] +'\n')
-                results.write(moves_table[player2][player1] +'\n')
-                #blank line between each pair's results
-                results.write('\n')
-            
-        #at the bottom repeat the output that was sent to the screen
-        #print a title for the table
-        results.write('\n\n\n\tEach column shows score earned per round against each other player.\n\n\n')
-        #print header line
-        results.write('\t') #skip 1st column
-        for player1 in range(num_players):
-            results.write('P'+str(player1)+'\t') # label each additional column
-        results.write('\n')
-        
-        #print each player's scores
-        for player2 in range(num_players):
-            results.write('P'+str(player2)+'\t') #label the player's row
-            for player1 in range(num_players):
-                #print score against each other player
-                results.write(str(result_table[player1][player2])+'\t') 
-            results.write('\n')
-        results.write('Total:\t')
-        for player1 in range(num_players):
-            results.write(str(int(scores[player1]))+'\t')
-        results.write('\n\n\n Average per round, with team strategy names:\n\n')       
-    
-        #print team ids, total scores, and names
-        for player in range(num_players):
-            results.write('player ' + str(player) + ': ' + \
-                    str(int(scores[player])/num_players) + ' points: '+\
-                    team_names[player]+'\n')
-                    
-                    
-        #append the file showing algorithms
-        results.write('\n\n' + '-'*79 + '\n' + \
-                    'Here is the code that produced this data:\n\n')
-        this_code_file = open(__file__, 'r')
-        for line in this_code_file:
-            results.write(line)
-                
-    '''report the results on screen'''        
-    #print a title for the table
-    print('\n\n\tEach column shows score earned per round against each other player.\n\n')
-    
-    #print header line
-    print('\t', end='') #skip 1st column
-    for player1 in range(num_players):
-        print('P',player1, end='\t') # label each additional column
-    print()
-    
-    #print each player's scores
-    for player2 in range(num_players):
-        print('P',player2, end='\t') #label the player's row
-        for player1 in range(num_players):
-            #print score against each other player
-            print(result_table[player1][player2], end='\t') 
-        print()
-    #print row of total scores
-    print('Total:\t',end='')
-    for player1 in range(num_players):
-        print(str(int(scores[player1])),end='\t')
+        filename = os.path.join(directory, players_code_filename)
+        players_code_file = open(filename+'.py', 'r')
+        code += '-'*80 + '\n'
+        code += players_code_filename
+        code +='-'*80 + '\n'
+        code += ''.join(players_code_file.readlines())
+    return code
 
-    print('\n\n\n Average per round, with team strategy names:\n\n')
-    #print team ids, total scores, and names
-    for player in range(num_players):
-        print('player ' + str(player) , ': ' , 
-               str(int(scores[player])/num_players) , ' points: ',
-               team_names[player])
+def copy_template():
+    '''Transfer code in team0.py to team1.py though team14.py
+    '''
+    directory = os.path.dirname(os.path.abspath(__file__))  
+    with open(os.path.join(directory, 'team0.py'), 'r') as sourcefile:
+        source = sourcefile.readlines()
+    for i in range(1, 15):
+        target = 'team'+str(i)+'.py'
+        filename = os.path.join(directory, target)
+        with open(filename, 'w') as target_file:
+            target_file.write(''.join(source))                                   
+                     
+def post_to_api():
+    pass
+
+def post_to_local_html():
+    pass
     
+def post_to_file(string, filename='tournament.txt', directory=''):
+    '''Write output in a txt file.
+    '''
+    # Use the same directory as the python script
+    if directory=='':
+        directory = os.path.dirname(os.path.abspath(__file__))  
+    # Name the file tournament.txt
+    filename = os.path.join(directory, filename)
+    # Create the file for the round-by-round results
+    filehandle = open(filename,'w')
+    filehandle.write(string)
+ 
+### Call main_play() if this file is executed
+if __name__ == '__main__':
+    scores, moves, reports = main_play(modules[0:4])   
+    section0, section1, section2, section3 = reports
